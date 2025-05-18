@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,12 +37,30 @@ const AiAssistant = () => {
 
   const toggleAudio = () => {
     setAudioEnabled(!audioEnabled);
-    // If we had actual audio control with Vapi, we would implement it here
-    // For now, we'll just show a toast notification
-    toast({
-      title: audioEnabled ? "Audio muted" : "Audio unmuted",
-      description: audioEnabled ? "You won't hear the assistant" : "You can now hear the assistant",
-    });
+    
+    if (vapi) {
+      // If true audio control is available with the Vapi instance
+      // This is a placeholder - with the real Vapi SDK you'd use the appropriate method
+      try {
+        // For example: vapi.setAudioEnabled(audioEnabled)
+        toast({
+          title: audioEnabled ? "Audio muted" : "Audio unmuted",
+          description: audioEnabled ? "You won't hear the assistant" : "You can now hear the assistant",
+        });
+      } catch (err) {
+        console.error("Error toggling audio:", err);
+        toast({
+          title: "Audio control failed",
+          description: "Could not change audio settings",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: audioEnabled ? "Audio muted" : "Audio unmuted",
+        description: audioEnabled ? "You won't hear the assistant" : "You can now hear the assistant",
+      });
+    }
   };
 
   const getSpeakingState = () => {

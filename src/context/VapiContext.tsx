@@ -1,67 +1,18 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-// This is a mock Vapi context that simulates the Vapi functionality
-// In a real implementation, you would use @vapi-ai/web
+import Vapi from '@vapi-ai/web';
 
 type Message = {
   type: string;
   speaker?: string;
   text?: string;
   content?: string;
+  role?: 'assistant' | 'user';
 };
 
-class MockVapi {
-  private apiKey: string;
-  private listeners: Record<string, ((msg: any) => void)[]>;
-  
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
-    this.listeners = {};
-  }
-  
-  async start(assistantId: string) {
-    console.log(`Starting call with assistant ${assistantId}`);
-    
-    // Simulate a delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Notify listeners that the call has started
-    this.notifyListeners('message', {
-      type: 'transcript',
-      speaker: 'agent',
-      text: 'Hello, I am your whistleblower assistant. How can I help you today?'
-    });
-    
-    return true;
-  }
-  
-  async stop() {
-    console.log('Stopping call');
-    return true;
-  }
-  
-  addListener(event: string, callback: (msg: any) => void) {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
-    }
-    this.listeners[event].push(callback);
-  }
-  
-  removeListener(event: string, callback: (msg: any) => void) {
-    if (!this.listeners[event]) return;
-    this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
-  }
-  
-  private notifyListeners(event: string, data: any) {
-    if (!this.listeners[event]) return;
-    this.listeners[event].forEach(callback => callback(data));
-  }
-}
-
 type VapiContextType = {
-  vapi: MockVapi | null;
+  vapi: Vapi | null;
   loading: boolean;
   error: string | null;
   isCallActive: boolean;
@@ -82,7 +33,7 @@ const VapiContext = createContext<VapiContextType>({
 
 export function VapiProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const [vapi, setVapi] = useState<MockVapi | null>(null);
+  const [vapi, setVapi] = useState<Vapi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCallActive, setIsCallActive] = useState(false);
@@ -95,11 +46,34 @@ export function VapiProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         setError(null);
 
-        // For demo purposes, we're using a mock API key
-        const apiKey = 'mock-api-key';
+        // In a real implementation, this would come from environment variables
+        // For demo purposes, we're using a placeholder
+        const apiKey = 'YOUR_VAPI_API_KEY'; // Replace this with your actual API key
         
         // Create a new Vapi instance
-        const vapiInstance = new MockVapi(apiKey);
+        const vapiInstance = new Vapi(apiKey);
+        
+        const handleMessage = (msg: any) => {
+          console.log('VAPI message:', msg);
+          
+          if (msg.type === 'transcript') {
+            setMessages(prev => [...prev, {
+              type: 'transcript',
+              speaker: msg.speaker,
+              text: msg.text,
+              role: msg.speaker === 'agent' ? 'assistant' : 'user'
+            }]);
+          } else if (msg.type === 'message') {
+            setMessages(prev => [...prev, {
+              type: 'message',
+              content: msg.content,
+              role: 'assistant'
+            }]);
+          }
+        };
+        
+        // Add listener for all messages
+        vapiInstance.addListener('message', handleMessage);
         
         setVapi(vapiInstance);
         setError(null);
@@ -137,14 +111,7 @@ export function VapiProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      
-      // Add message event listener
-      const handleMessage = (msg: Message) => {
-        console.log('VAPI message:', msg);
-        setMessages(prev => [...prev, msg]);
-      };
-      
-      vapi.addListener('message', handleMessage);
+      setMessages([]); // Clear previous messages
       
       // Start the call
       await vapi.start(assistantId);
@@ -175,7 +142,6 @@ export function VapiProvider({ children }: { children: ReactNode }) {
     try {
       vapi.stop();
       setIsCallActive(false);
-      setMessages([]);
       
       toast({
         title: "Call ended",
