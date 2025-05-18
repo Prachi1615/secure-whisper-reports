@@ -46,9 +46,8 @@ export function VapiProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         setError(null);
 
-        // In a real implementation, this would come from environment variables
-        // For demo purposes, we're using a placeholder
-        const apiKey = 'YOUR_VAPI_API_KEY'; // Replace this with your actual API key
+        // Using the provided Vapi API key
+        const apiKey = '6b3e7486-6bd4-4521-b010-4d4ea7bf2f48';
         
         // Create a new Vapi instance
         const vapiInstance = new Vapi(apiKey);
