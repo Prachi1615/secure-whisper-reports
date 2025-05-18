@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 import { MicIcon, PhoneIcon, PhoneOffIcon, Volume2Icon, VolumeXIcon } from 'lucide-react';
 import { useVapi } from '../context/VapiContext';
 
-// Assistant ID - replace this with your actual Vapi assistant ID when ready
-const ASSISTANT_ID = "whistleblower-assistant"; // This will be replaced with your actual ID
+// Updated Assistant ID with the user's actual Vapi assistant ID
+const ASSISTANT_ID = "17195059-600b-4a2e-90b3-ab63c05a6837";
 
 const AiAssistant = () => {
   const { toast } = useToast();
