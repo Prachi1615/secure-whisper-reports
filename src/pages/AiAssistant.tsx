@@ -1,143 +1,62 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { MicIcon, PhoneIcon, PhoneOffIcon } from 'lucide-react';
+import { MicIcon, PhoneIcon, PhoneOffIcon, Volume2Icon, VolumeXIcon } from 'lucide-react';
+import { useVapi } from '../context/VapiContext';
 
-// Mock audio URL - this would be replaced by the actual Vapi AI assistant
-const mockAudioUrl = "https://audio-samples.github.io/samples/mp3/blizzard_unconditional/sample-0.mp3";
+// Assistant ID - replace this with your actual Vapi assistant ID when ready
+const ASSISTANT_ID = "whistleblower-assistant"; // This will be replaced with your actual ID
 
 const AiAssistant = () => {
   const { toast } = useToast();
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<{ role: string; content: string; }[]>([]);
-  const [vapiKey, setVapiKey] = useState<string | null>(null);
-  const [audioState, setAudioState] = useState<'idle' | 'speaking' | 'listening'>('idle');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { vapi, loading: vapiLoading, error: vapiError, isCallActive, startCall, endCall, messages } = useVapi();
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [loadingCall, setLoadingCall] = useState(false);
 
-  useEffect(() => {
-    // Check for Vapi API key in localStorage (if user has stored it before)
-    const storedApiKey = localStorage.getItem('vapiApiKey');
-    if (storedApiKey) {
-      setVapiKey(storedApiKey);
-    }
-
-    // Initialize audio element
-    audioRef.current = new Audio();
-    
-    // Clean up
-    return () => {
-      if (isCallActive) {
-        endCall();
-      }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-    };
-  }, []);
-
-  const startCall = async () => {
+  const handleStartCall = async () => {
     try {
-      setIsLoading(true);
-      
-      if (!vapiKey) {
-        // If no API key, ask user to enter one
-        promptForApiKey();
-        setIsLoading(false);
-        return;
-      }
-      
-      // Simulate API initialization
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Start the call
-      setIsCallActive(true);
-      setMessages([
-        { role: 'assistant', content: 'Hello, I\'m your whistleblower assistant. How can I help you today?' }
-      ]);
-      
-      // Simulate the assistant speaking
-      setAudioState('speaking');
-      if (audioRef.current) {
-        audioRef.current.src = mockAudioUrl;
-        audioRef.current.play();
-        audioRef.current.onended = () => {
-          setAudioState('listening');
-        };
-      }
-      
-      toast({
-        title: "Call connected",
-        description: "You are now connected to our AI assistant."
-      });
-      
+      setLoadingCall(true);
+      await startCall(ASSISTANT_ID);
     } catch (error) {
       console.error("Error starting call:", error);
       toast({
-        title: "Connection failed",
-        description: "Failed to connect to the assistant. Please try again.",
-        variant: "destructive"
+        title: "Call failed",
+        description: "Could not connect to the AI assistant. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoadingCall(false);
     }
   };
 
-  const endCall = () => {
-    // End the call
-    setIsCallActive(false);
-    setAudioState('idle');
-    
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    }
-    
+  const handleEndCall = () => {
+    endCall();
+  };
+
+  const toggleAudio = () => {
+    setAudioEnabled(!audioEnabled);
+    // If we had actual audio control with Vapi, we would implement it here
+    // For now, we'll just show a toast notification
     toast({
-      title: "Call ended",
-      description: "Your call with the AI assistant has ended."
+      title: audioEnabled ? "Audio muted" : "Audio unmuted",
+      description: audioEnabled ? "You won't hear the assistant" : "You can now hear the assistant",
     });
   };
 
-  const promptForApiKey = () => {
-    const apiKey = window.prompt("Please enter your Vapi API key to continue:");
-    if (apiKey) {
-      setVapiKey(apiKey);
-      localStorage.setItem('vapiApiKey', apiKey);
-      // Start call again now that we have the key
-      startCall();
-    }
+  const getSpeakingState = () => {
+    if (!isCallActive) return 'idle';
+    
+    // Check the last message to determine if assistant is speaking or listening
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    
+    if (!lastMessage) return 'idle';
+    
+    return lastMessage.type === 'transcript' && lastMessage.speaker === 'agent' ? 'speaking' : 'listening';
   };
 
-  const handleUserSpeak = () => {
-    // Simulate user speaking
-    setAudioState('listening');
-    
-    setTimeout(() => {
-      // After 3 seconds, add user message
-      const userMessage = "I'd like to know how the whistleblower reporting system protects my anonymity";
-      setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-      
-      // Then simulate assistant responding
-      setTimeout(() => {
-        setAudioState('speaking');
-        const assistantResponse = "The whistleblower system protects your anonymity through several layers of security. First, all reports are encrypted end-to-end. Second, we use blockchain technology to ensure that once data is recorded, it cannot be altered. Third, no personally identifiable information is required to submit a report. You're identified only by a randomly generated report ID that you should keep secure. If you choose to provide a crypto wallet for rewards, that information is kept separate from your report details.";
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: assistantResponse }]);
-        
-        if (audioRef.current) {
-          audioRef.current.src = mockAudioUrl;
-          audioRef.current.play();
-          audioRef.current.onended = () => {
-            setAudioState('listening');
-          };
-        }
-      }, 1000);
-    }, 3000);
-  };
+  const audioState = getSpeakingState();
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
@@ -157,27 +76,35 @@ const AiAssistant = () => {
           {isCallActive ? (
             <div className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-md border border-gray-200 h-64 overflow-y-auto">
-                {messages.map((msg, index) => (
-                  <div 
-                    key={index} 
-                    className={`mb-4 ${msg.role === 'assistant' ? 'pl-4' : 'pr-4'}`}
-                  >
-                    <div className={`flex ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                {messages.map((msg, index) => {
+                  // Handle different message types from Vapi
+                  if (msg.type === 'transcript') {
+                    return (
                       <div 
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          msg.role === 'assistant' 
-                          ? 'bg-whistleblower-light text-gray-800' 
-                          : 'bg-whistleblower-accent text-white'
-                        }`}
+                        key={index} 
+                        className={`mb-4 ${msg.speaker === 'agent' ? 'pl-4' : 'pr-4'}`}
                       >
-                        <div className="text-sm">{msg.content}</div>
+                        <div className={`flex ${msg.speaker === 'agent' ? 'justify-start' : 'justify-end'}`}>
+                          <div 
+                            className={`max-w-[80%] rounded-lg p-3 ${
+                              msg.speaker === 'agent' 
+                              ? 'bg-whistleblower-light text-gray-800' 
+                              : 'bg-whistleblower-accent text-white'
+                            }`}
+                          >
+                            <div className="text-sm">{msg.text}</div>
+                          </div>
+                        </div>
+                        <div className={`text-xs text-gray-500 mt-1 ${msg.speaker === 'agent' ? 'text-left' : 'text-right'}`}>
+                          {msg.speaker === 'agent' ? 'AI Assistant' : 'You'}
+                        </div>
                       </div>
-                    </div>
-                    <div className={`text-xs text-gray-500 mt-1 ${msg.role === 'assistant' ? 'text-left' : 'text-right'}`}>
-                      {msg.role === 'assistant' ? 'AI Assistant' : 'You'}
-                    </div>
-                  </div>
-                ))}
+                    );
+                  } else {
+                    // Handle any other message types
+                    return null;
+                  }
+                })}
               </div>
               
               <div className="flex flex-col items-center space-y-4">
@@ -196,23 +123,33 @@ const AiAssistant = () => {
                 )}
                 
                 {audioState === 'listening' && (
-                  <Button 
-                    onClick={handleUserSpeak}
-                    size="lg" 
-                    className="rounded-full h-16 w-16 p-0 bg-whistleblower-accent hover:bg-whistleblower-primary"
-                  >
-                    <MicIcon className="h-6 w-6" />
-                    <span className="sr-only">Speak</span>
-                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="relative">
+                      <MicIcon className="h-10 w-10 text-whistleblower-accent" />
+                      <div className="absolute -top-1 -left-1 w-12 h-12 border-2 border-whistleblower-accent/50 rounded-full animate-ping"></div>
+                    </div>
+                    <p className="text-sm">Listening to you...</p>
+                  </div>
                 )}
-                
-                <p className="text-sm text-gray-500">
-                  {audioState === 'listening' 
-                    ? 'Click the mic button and speak clearly' 
-                    : audioState === 'speaking'
-                      ? 'Please wait for the assistant to finish speaking'
-                      : 'Please wait...'}
-                </p>
+              </div>
+              
+              <div className="flex justify-center space-x-4">
+                <Button
+                  onClick={toggleAudio}
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                >
+                  {audioEnabled ? <Volume2Icon /> : <VolumeXIcon />}
+                </Button>
+                <Button 
+                  onClick={handleEndCall} 
+                  variant="destructive" 
+                  className="flex items-center space-x-2"
+                >
+                  <PhoneOffIcon className="h-4 w-4" />
+                  <span>End Call</span>
+                </Button>
               </div>
             </div>
           ) : (
@@ -225,27 +162,18 @@ const AiAssistant = () => {
                 Get answers about whistleblowing, report procedures, and protections through a secure voice interface.
               </p>
               <Button
-                onClick={startCall}
-                disabled={isLoading}
+                onClick={handleStartCall}
+                disabled={vapiLoading || loadingCall}
                 className="bg-whistleblower-accent hover:bg-whistleblower-primary"
               >
-                {isLoading ? "Connecting..." : "Start Secure Call"}
+                {loadingCall || vapiLoading ? "Connecting..." : "Start Secure Call"}
               </Button>
+              {vapiError && (
+                <p className="text-red-500 mt-2 text-sm">{vapiError}</p>
+              )}
             </div>
           )}
         </CardContent>
-        {isCallActive && (
-          <CardFooter className="flex justify-center">
-            <Button 
-              onClick={endCall} 
-              variant="destructive" 
-              className="flex items-center space-x-2"
-            >
-              <PhoneOffIcon className="h-4 w-4" />
-              <span>End Call</span>
-            </Button>
-          </CardFooter>
-        )}
       </Card>
 
       <div className="mt-8">
